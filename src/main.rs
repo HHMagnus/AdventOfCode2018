@@ -1,5 +1,7 @@
-mod day3;
+#![recursion_limit = "256"]
+
+mod day4;
 
 fn main() {
-	day3::day3();
+	day4::day4();
 }
