@@ -9,7 +9,7 @@ static ASCII_LOWER: [char; 26] = [
     'z',
 ];
 
-pub fn day2() {
+fn main() {
 	day2part1();
 	day2part2();
 }

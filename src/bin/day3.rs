@@ -7,7 +7,7 @@ struct Claim {
 	size: (u32, u32)
 }
 
-pub fn day3() {
+fn main() {
 	let file = fs::read_to_string("input/day3.txt").expect("Should have read file");
 
 	let claims: Vec<Claim> = file.lines().map(|x| {

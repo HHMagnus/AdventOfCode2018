@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use std::{fs, collections::HashMap};
 
 use aoc_parse::{parser, prelude::*};
@@ -9,7 +10,7 @@ enum I {
 	Awake(u32, u32, u32, u32, u32),
 }
 
-pub fn day4() {
+pub fn main() {
 	let file = fs::read_to_string("input/day4.txt").expect("Should have read file");
 
 	let parser = parser!(lines({

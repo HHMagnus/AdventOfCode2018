@@ -1,7 +1,7 @@
 use std::fs;
 use std::collections::HashSet;
 
-pub fn day1() {
+fn main() {
 	let file = fs::read_to_string("input/day1.txt").expect("Should have read file");
     let day1:i32 = file.lines().map(|f| f.parse::<i32>().expect("Not an intger")).sum();
 	println!("Day 1 part 1: {}", day1);
