@@ -17,7 +17,7 @@ fn main() {
 	let mut map = HashMap::new();
 
 	for y in min_y..=max_y {
-		for x in min_x..max_x {
+		for x in min_x..=max_x {
 			let mins = lines.iter().enumerate().map(|x0| (x0.0, man(*x0.1, (x,y)))).collect::<Vec<_>>();
 			let min = mins.iter().min_by_key(|(_, x)| x).unwrap();
 			let cs = mins.iter().map(|(_, x)| x).filter(|&&x| x == min.1).count();
@@ -47,6 +47,19 @@ fn main() {
 	let part1 = map.iter().filter(|&(i, _)| !infinites.contains(i)).map(|(_, &v)| v).max().unwrap();
 
 	println!("Day 6 part 1: {}", part1);
+
+	let mut part2 = 0;
+
+	for y in min_y-10000..=max_y+10000 {
+		for x in min_x-10000..=max_x+10000 {
+			let lengths = lines.iter().map(|x0| man(*x0, (x,y))).sum::<i32>();
+			if lengths < 10000 {
+				part2 += 1;
+			}
+		}
+	}
+
+	println!("Day 6 part 2: {}", part2);
 }
 
 fn man(x: (i32, i32), y: (i32, i32)) -> i32 {
