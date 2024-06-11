@@ -72,8 +72,8 @@ fn main() {
 		}
 	}).collect::<Vec<_>>();
 	
-	let mut set = HashSet::new();
-	let _ = fall((500, 0), &mut ranges, &mut set);
+	let mut water = HashSet::new();
+	let _ = fall((500, 0), &mut ranges, &mut water);
 
 	let ymin = ranges.iter().map(|r| r.ymin()).min().unwrap();
 	let ymax = ranges.iter().map(|r| r.ymax()).max().unwrap();
@@ -82,7 +82,7 @@ fn main() {
 	
 	for y in ymin..=ymax {
 		for x in xmin..=xmax {
-			if set.contains(&(x, y)) {
+			if water.contains(&(x, y)) {
 				print!("~");
 			} else if ranges.iter().any(|r| r.blocks((x, y))) {
 				print!("#");
@@ -93,9 +93,38 @@ fn main() {
 		println!("");
 	}*/
 
-	let part1 = set.iter().filter(|&&(_,y)| y >= ymin && y <= ymax).count();
+	let part1 = water.iter().filter(|&&(_,y)| y >= ymin && y <= ymax).count();
 
 	println!("Day 17 part 1: {}", part1);
+
+	let mut stillwater = HashSet::new();
+
+	let mut last = 1;
+
+	while last != stillwater.len() {
+		last = stillwater.len();
+
+		for &(x, y) in &water {
+			if stillwater.contains(&(x,y)) {
+				continue;
+			}
+			if stillwater.contains(&(x, y + 1)) || ranges.iter().any(|r| r.blocks((x, y + 1))) {
+				let mut left = (x - 1, y);
+				while water.contains(&left) {
+					left = (left.0 - 1, left.1);
+				}
+				let mut right = (x + 1, y);
+				while water.contains(&right) {
+					right = (right.0 + 1, right.1);
+				}
+				if ranges.iter().any(|r| r.blocks(left)) && ranges.iter().any(|r| r.blocks(right)) {
+					stillwater.insert((x, y));
+				}
+			}
+		}
+	}
+	
+	println!("Day 17 part 1: {}", stillwater.len());
 }
 
 fn fall(origin: (i32, i32), ranges: &mut Vec<Range>, water: &mut HashSet<(i32, i32)>) -> bool {
@@ -157,8 +186,3 @@ fn side(origin: (i32, i32), ranges: &mut Vec<Range>, change: i32, water: &mut Ha
 		}
 	}
 }
-// 62884 not right
-// 869568 too high
-// 1217073 too high
-// 1307680 too high
-// 1631466
