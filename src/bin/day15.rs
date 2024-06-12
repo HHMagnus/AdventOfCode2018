@@ -32,6 +32,33 @@ impl Mob {
     pub fn dmg(&mut self, hit: i32) {
         self.hit_points -= hit;
     }
+
+    pub fn is_dead(&self) -> bool {
+        self.hit_points < 1
+    }
+}
+
+#[derive(Debug)]
+struct Map {
+    map: HashMap<(usize, usize), char>,
+    mobs: Vec<Mob>,
+}
+
+impl Map {
+    fn new(map: HashMap<(usize, usize), char>) -> Map {
+        let mobs = map
+            .iter()
+            .filter_map(|(&(x, y), &c)| Mob::new(c, (x, y)))
+            .collect::<Vec<_>>();
+        Map {
+            map,
+            mobs,
+        }
+    }
+
+    fn round() {
+        
+    }
 }
 
 fn main() {
@@ -46,13 +73,8 @@ fn main() {
             .map(|(x, c)| ((x,y), c))
             .collect::<Vec<_>>())
         .collect::<HashMap<_, _>>();
-
-    let mobs = maps
-        .iter()
-        .filter_map(|(&(x, y), &c)| Mob::new(c, (x, y)))
-        .collect::<Vec<_>>();
-
-    println!("{:?}", mobs);
+    
+    let map = Map::new(maps);
 
 }
 
