@@ -15,7 +15,7 @@ struct Mob {
 }
 
 impl Mob {
-    pub fn new(c: char, position: (usize, usize)) -> Option<Mob> {
+    pub fn new(c: char, position: (usize, usize), elf_attack: i32) -> Option<Mob> {
         let typ = match c {
             'G' => MobType::Goblin,
             'E' => MobType::Elf,
@@ -25,7 +25,7 @@ impl Mob {
             typ,
             position,
             hit_points: 200,
-            attack_power: 3
+            attack_power: if typ == MobType::Elf { elf_attack } else { 3 }
         })
     }
 
@@ -49,16 +49,28 @@ struct Map {
 }
 
 impl Map {
-    fn new(map: HashMap<(usize, usize), char>) -> Map {
+    fn new(map: HashMap<(usize, usize), char>, elf_attack: i32) -> Map {
         let mobs = map
             .iter()
-            .filter_map(|(&(x, y), &c)| Mob::new(c, (x, y)))
+            .filter_map(|(&(x, y), &c)| Mob::new(c, (x, y), elf_attack))
             .collect::<Vec<_>>();
         Map {
             map,
             mobs,
         }
     }
+
+	fn play(&mut self) -> i32 {
+		let mut rounds = 0;
+
+		while self.round() {
+			rounds += 1;
+		}
+	
+		let hit_points_left = self.mobs.iter().map(|x| x.hit_points).sum::<i32>();
+	
+		hit_points_left*rounds
+	}
 
     fn round(&mut self) -> bool {
 		let mut mobs = self.mobs
@@ -113,7 +125,7 @@ impl Map {
 
 			let mut target = neighbours(mob.position)
 				.into_iter()
-				.filter_map(|neigh| mobs.iter().chain(new_mobs.iter()).find(|x| x.typ != mob.typ && x.position == neigh))
+				.filter_map(|neigh| mobs.iter().chain(new_mobs.iter()).find(|x| !x.is_dead() && x.typ != mob.typ && x.position == neigh))
 				.collect::<Vec<_>>();
 			target.sort_by_key(|x| (x.hit_points, x.position.1, x.position.0));
 			let target = target.first().map(|x| x.position);
@@ -205,18 +217,26 @@ fn main() {
             .collect::<Vec<_>>())
         .collect::<HashMap<_, _>>();
     
-    let mut map = Map::new(maps);
+    let mut map = Map::new(maps.clone(), 3);
 
-	let mut rounds = 0;
+	let part1 = map.play();
 
-	while map.round() {
-		rounds += 1;
+	println!("Day 15 part 1: {}", part1);
+
+	let mut attack_power = 4;
+	loop {
+		let mut map = Map::new(maps.clone(), attack_power);
+
+		let elfs_before = map.mobs.iter().filter(|x| x.typ == MobType::Elf).count();
+		let outcome = map.play();
+		let elfs_after = map.mobs.iter().filter(|x| x.typ == MobType::Elf).count();
+
+		if elfs_before == elfs_after {
+			println!("Day 15 part 2: {}", outcome);
+			break;
+		}
+
+		attack_power += 1;
 	}
-
-	map.print();
-
-	let hit_points_left = map.mobs.iter().map(|x| x.hit_points).sum::<i32>();
-
-	println!("Day 15 part 1 {}", hit_points_left*rounds);
 
 }
