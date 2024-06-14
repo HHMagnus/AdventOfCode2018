@@ -91,31 +91,32 @@ impl Map {
 				return false;
 			}
 
-			let active_mobs = mobs.iter().chain(new_mobs.iter()).collect::<Vec<_>>();
+			let active_mobs = mobs.iter().chain(new_mobs.iter()).filter(|x| !x.is_dead()).collect::<Vec<_>>();
 
 			let mut positions = targets.iter()
 				.flat_map(|x| neighbours(x.position))
-				.filter(|&x| !active_mobs.iter().any(|mob| mob.position == x))
+				.filter(|&x| !active_mobs.iter().any(|mob| mob.position == x) && self.in_map(x))
 				.filter_map(|x| self.dist_to(&active_mobs, mob.position, x).map(|y| (x, y)))
 				.collect::<Vec<_>>();
-			positions.sort_by_key(|x| (x.1, x.0.1, x.0.1));
+			positions.sort_by_key(|x| (x.1, x.0.1, x.0.0));
 
 			if !positions.is_empty() && positions[0].1 > 1 {
 				let mut new_spots = neighbours(mob.position)
 					.into_iter()
-					.filter(|&x| self.in_map(x))
+					.filter(|&x| self.in_map(x) && !active_mobs.iter().any(|mob| mob.position == x))
 					.filter_map(|x| self.dist_to(&active_mobs, x, positions[0].0).map(|y| (x, y)))
 					.collect::<Vec<_>>();
-				new_spots.sort_by_key(|x| (x.1, x.0.1, x.0.1));
+				new_spots.sort_by_key(|x| (x.1, x.0.1, x.0.0));
 
 				mob.move_to(new_spots[0].0);
 			}
 
-			let target = neighbours(mob.position)
+			let mut target = neighbours(mob.position)
 				.into_iter()
 				.filter_map(|neigh| mobs.iter().chain(new_mobs.iter()).find(|x| x.typ != mob.typ && x.position == neigh))
-				.min_by_key(|x| x.hit_points)
-				.map(|x| x.position);
+				.collect::<Vec<_>>();
+			target.sort_by_key(|x| (x.hit_points, x.position.1, x.position.0));
+			let target = target.first().map(|x| x.position);
 
 			if let Some(target) = target {
 				if let Some(target) = (&mut mobs).into_iter().chain((&mut new_mobs).into_iter()).find(|x| x.position == target) {
@@ -216,10 +217,6 @@ fn main() {
 
 	let hit_points_left = map.mobs.iter().map(|x| x.hit_points).sum::<i32>();
 
-	// 191417 too low
-	// 193840 too high
-	println!("Day 15 part 1 {}", rounds);
-	println!("Day 15 part 1 {}", hit_points_left);
 	println!("Day 15 part 1 {}", hit_points_left*rounds);
 
 }
