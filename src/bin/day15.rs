@@ -60,7 +60,7 @@ impl Map {
         }
     }
 
-    fn round(&mut self) {
+    fn round(&mut self) -> bool {
 		let mut mobs = self.mobs
 			.clone()
 			.into_iter()
@@ -84,7 +84,11 @@ impl Map {
 
 			if targets.is_empty() {
 				new_mobs.push(mob);
-				continue;
+				for mob in mobs {
+					new_mobs.push(mob);
+				}
+				self.mobs = new_mobs.into_iter().filter(|x| !x.is_dead()).collect();
+				return false;
 			}
 
 			let active_mobs = mobs.iter().chain(new_mobs.iter()).collect::<Vec<_>>();
@@ -123,6 +127,8 @@ impl Map {
         }
 
 		self.mobs = new_mobs.into_iter().filter(|x| !x.is_dead()).collect();
+
+		true
     }
 
 	fn in_map(&self, position: (usize, usize)) -> bool {
@@ -154,14 +160,9 @@ impl Map {
 		None
 	}
 
-	fn ended(&self) -> bool {
-		self.mobs.iter().all(|x| x.typ == MobType::Elf)
-		|| self.mobs.iter().all(|x| x.typ == MobType::Goblin)
-	}
-
 	fn print(&self) {
 		for y in 0..=self.map.keys().map(|x| x.1).max().unwrap() {
-			for x in 0..self.map.keys().map(|x| x.0).max().unwrap() {
+			for x in 0..=self.map.keys().map(|x| x.0).max().unwrap() {
 				if let Some(mob) = self.mobs.iter().find(|mob| mob.position == (x, y)) {
 					if mob.typ == MobType::Elf {
 						print!("E")
@@ -207,19 +208,18 @@ fn main() {
 
 	let mut rounds = 0;
 
-	while !map.ended() {
+	while map.round() {
 		rounds += 1;
-		map.round();
 	}
 
 	map.print();
 
-
 	let hit_points_left = map.mobs.iter().map(|x| x.hit_points).sum::<i32>();
 
-	// too high 196720
-	println!("Day 15 part 1 {}", hit_points_left);
+	// 191417 too low
+	// 193840 too high
 	println!("Day 15 part 1 {}", rounds);
+	println!("Day 15 part 1 {}", hit_points_left);
 	println!("Day 15 part 1 {}", hit_points_left*rounds);
 
 }
