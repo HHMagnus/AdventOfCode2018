@@ -1,12 +1,12 @@
 use std::{collections::HashMap, fs};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum MobType {
     Goblin,
     Elf
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Mob {
     typ: MobType,
     position: (usize, usize),
@@ -56,9 +56,23 @@ impl Map {
         }
     }
 
-    fn round() {
-        
+    fn round(&mut self) {
+        let mut units = self.mobs.iter().enumerate().collect::<Vec<_>>();
+        units.sort_by_key(|(_, mob)| (mob.position.1, mob.position.0));
+        let unit_order = units.into_iter().map(|(i, _)| i).collect::<Vec<_>>();
+
+        for mob in &self.mobs {
+            if mob.is_dead() {
+                continue;
+            }
+
+            let targets = self.mobs.iter().filter(|x| !x.is_dead() && x.typ != mob.typ).flat_map(|x| neighbours(x.position)).collect::<Vec<_>>();
+        }
     }
+}
+
+fn neighbours(position: (usize, usize)) -> Vec<(usize, usize)> {
+
 }
 
 fn main() {
