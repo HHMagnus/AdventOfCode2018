@@ -17,6 +17,25 @@ fn main() {
 	let part1 = parsed.iter().filter(|&&x| in_range(max, x)).count();
 
 	println!("Day 23 part 1: {}", part1);
+
+	let mut part2map = parsed.into_iter().flat_map(|x| {
+		let d = x.0.abs() + x.1.abs() + x.2.abs();
+		vec![((d - x.3).max(0), 1), (d + x.3 + 1, - 1)]
+	}).collect::<Vec<_>>();
+	part2map.sort();
+
+	let mut part2 = 0;
+	let mut part2count = 0;
+	part2map.into_iter().fold(0, |acc, (res, diff)| {
+		let nacc = acc + diff;
+		if nacc > part2count {
+			part2count = nacc;
+			part2 = res;
+		}
+		nacc
+	});
+
+	println!("Day 23 part 2: {}", part2);
 }
 
 fn in_range(nanobot1: (i32, i32, i32, i32), nanobot2: (i32, i32, i32, i32)) -> bool {
