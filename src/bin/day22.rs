@@ -43,13 +43,28 @@ impl PartialOrd for State {
 	}
 }
 
-impl State {
-	fn move_to(&self, pos:(u128, u128), dest: RegionType) -> Vec<State> {
+impl Gear {
+	fn possible(dest: RegionType) -> Vec<Gear> {
 		match dest {
-			RegionType::Rocky => vec![self.moved(pos, Gear::Torch), self.moved(pos, Gear::ClimbingGear)],
-			RegionType::Wet => vec![self.moved(pos, Gear::ClimbingGear), self.moved(pos, Gear::Neither)],
-			RegionType::Narrow => vec![self.moved(pos, Gear::Torch), self.moved(pos, Gear::Neither)],
+			RegionType::Rocky => vec![Gear::Torch, Gear::ClimbingGear],
+			RegionType::Wet => vec![Gear::ClimbingGear, Gear::Neither],
+			RegionType::Narrow => vec![Gear::Torch, Gear::Neither],
 		}
+	}
+}
+
+impl State {
+	fn move_to(&self, pos:(u128, u128), curr: RegionType, dest: RegionType) -> Vec<State> {
+		let dest_gear = Gear::possible(dest);
+		let curr_gear = Gear::possible(curr);
+
+		let mut vec = Vec::new();
+		for x in dest_gear {
+			if curr_gear.contains(&x) {
+				vec.push(self.moved(pos, x));
+			}
+		}
+		vec
 	}
 	
 	fn moved(&self, pos:(u128, u128), equipment: Gear) -> State {
@@ -74,8 +89,10 @@ fn main() {
 
 	let mut map = HashMap::new();
 
-	for y in 0..=target.1 {
-		for x in 0..=target.0 {
+	let map_size = target.0.max(target.1)*2;
+
+	for y in 0..=map_size {
+		for x in 0..=map_size {
 			let erosion_level = geologic_index((x, y), depth, target);
 
 			let typ = match erosion_level % 3 {
@@ -126,14 +143,21 @@ fn part2(map: &HashMap<(u128, u128), RegionType>, target: (u128, u128)) -> u128 
 		}
 		visited.insert(vkey, next.cost);
 
-		if next.pos == target && next.equipment == Gear::Torch {
-			return next.cost;
+		if next.pos == target {
+			if next.equipment == Gear::Torch {
+				return next.cost;
+			}
+			states.push(State {
+				cost: next.cost + 7,
+				equipment: Gear::Torch,
+				pos: next.pos
+			});
 		}
 
 		let neighbours = neighbours(next.pos, map);
 
 		for neigh in neighbours {
-			for x in next.move_to(neigh, map[&neigh]) {
+			for x in next.move_to(neigh, map[&next.pos], map[&neigh]) {
 				states.push(x);
 			}
 		}
