@@ -23,7 +23,7 @@ struct Units {
 	initiative: i32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Map {
 	immune_system: Vec<Units>,
 	infection_group: Vec<Units>,
@@ -69,9 +69,16 @@ impl Units {
 	}
 
 	fn attacked(&mut self, other: &Units) {
+		if other.is_dead() {
+			return;
+		}
 		let dmg_taken = self.damage_taken(other.total, other.damage, other.damage_type);
 		let killing = dmg_taken / self.hit_points;
 		self.total -= killing;
+	}
+	
+	fn boost(&mut self, boost: i32) {
+		self.damage += boost;
 	}
 }
 
@@ -84,8 +91,15 @@ impl Map {
 	}
 
 	fn play(&mut self) {
+		let mut units = self.total_units();
 		while !self.done() {
 			self.round();
+			// Break any infinite loops
+			let nunits = self.total_units();
+			if units == nunits {
+				return;
+			}
+			units = nunits;
 		}
 	}
 
@@ -102,7 +116,8 @@ impl Map {
 				break;
 			}
 
-			if next_immune.is_some() && (next_infection.is_none() || next_infection.unwrap().1.effective_power() < next_immune.unwrap().1.effective_power()) {
+			if next_immune.is_some() && (next_infection.is_none() || next_infection.unwrap().1.effective_power() < next_immune.unwrap().1.effective_power()
+				|| (next_infection.unwrap().1.effective_power() == next_immune.unwrap().1.effective_power() && next_infection.unwrap().1.initiative < next_immune.unwrap().1.initiative)) {
 				let next = next_immune.unwrap();
 				let mut infections = self.infection_group
 					.iter()
@@ -113,7 +128,7 @@ impl Map {
 				infections.sort();
 				infections.reverse();
 
-				if !infections.is_empty() {
+				if !infections.is_empty() && infections[0].0 != 0 {
 					immune_targets.insert(next.0, infections[0].3);
 				} else {
 					immune_targets.insert(next.0, usize::MAX);
@@ -129,7 +144,7 @@ impl Map {
 				immunities.sort();
 				immunities.reverse();
 
-				if !immunities.is_empty() {
+				if !immunities.is_empty() && immunities[0].0 != 0  {
 					infection_targets.insert(next.0, immunities[0].3);
 				} else {
 					infection_targets.insert(next.0, usize::MAX);
@@ -170,8 +185,18 @@ impl Map {
 	}
 
 	fn total_units(&self) -> i32 {
-		self.immune_system.iter().filter(|x| !x.is_dead()).map(|x| x.total).sum::<i32>()
-		+ self.infection_group.iter().filter(|x| !x.is_dead()).map(|x| x.total).sum::<i32>()
+		self.immune_system.iter().map(|x| x.total).sum::<i32>()
+		+ self.infection_group.iter().map(|x| x.total).sum::<i32>()
+	}
+
+	fn boost(&mut self, boost: i32) {
+		for x in &mut self.immune_system {
+			x.boost(boost);
+		}
+	}
+
+	fn immune_system_won(&self) -> bool{
+		!self.immune_system.is_empty() && self.infection_group.is_empty()
 	}
 }
 
@@ -218,10 +243,25 @@ fn main() {
 	let immune = split[0].lines().collect::<Vec<_>>()[1..].into_iter().map(|x| parser.parse(&x).unwrap()).map(Units::new).collect::<Vec<_>>();
 	let infection = split[1].lines().collect::<Vec<_>>()[1..].into_iter().map(|x| parser.parse(&x).unwrap()).map(Units::new).collect::<Vec<_>>();
 
-	let mut map = Map::new(immune, infection);
+	let map = Map::new(immune, infection);
 	
-	map.play();
-
-	let part1 = map.total_units();
+	let mut part1map = map.clone();
+	part1map.play();
+	let part1 = part1map.total_units();
 	println!("Day 24 part 1: {}", part1);
+
+	let mut i = 1;
+
+	loop {
+		let mut part2map = map.clone();
+		part2map.boost(i);
+		part2map.play();
+		
+		if part2map.immune_system_won() {
+			let part2 = part2map.total_units();
+			println!("Day 24 part 2: {}", part2);
+			break;
+		}
+		i += 1;
+	}
 }
