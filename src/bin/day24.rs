@@ -1,9 +1,9 @@
 #![recursion_limit = "256"]
-use std::fs;
+use std::{collections::HashMap, fs};
 
 use aoc_parse::{parser, prelude::*};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum DamageType {
 	Bludgeoning,
 	Slashing,
@@ -12,7 +12,7 @@ enum DamageType {
 	Radiation,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Units {
 	total: i32,
 	hit_points: i32,
@@ -21,6 +21,12 @@ struct Units {
 	damage: i32,
 	damage_type: DamageType,
 	initiative: i32,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Map {
+	immune_system: Vec<Units>,
+	infection_group: Vec<Units>,
 }
 
 impl Units {
@@ -41,6 +47,131 @@ impl Units {
 			damage_type,
 			initiative
 		}
+	}
+
+	fn effective_power(&self) -> i32 {
+		self.total * self.damage
+	}
+
+	fn damage_taken(&self, units: i32, dmg: i32, damage_type: DamageType) -> i32 {
+		let total = units * dmg;
+		if self.immunities.contains(&damage_type) {
+			return 0;
+		}
+		if self.weakness.contains(&damage_type) {
+			return total * 2;
+		}
+		total
+	}
+
+	fn is_dead(&self) -> bool {
+		self.total <= 0
+	}
+
+	fn attacked(&mut self, other: &Units) {
+		let dmg_taken = self.damage_taken(other.total, other.damage, other.damage_type);
+		let killing = dmg_taken / self.hit_points;
+		self.total -= killing;
+	}
+}
+
+impl Map {
+	fn new(immune_system: Vec<Units>, infection_group: Vec<Units>) -> Map {
+		Map {
+			immune_system,
+			infection_group
+		}
+	}
+
+	fn play(&mut self) {
+		while !self.done() {
+			self.round();
+		}
+	}
+
+	fn round(&mut self) {
+		// Targeting
+		let mut immune_targets = HashMap::new();
+		let mut infection_targets = HashMap::new();
+
+		loop {
+			let next_immune = self.immune_system.iter().enumerate().filter(|(i, _)| !immune_targets.contains_key(i)).max_by_key(|x| (x.1.effective_power(), x.1.initiative));
+			let next_infection = self.infection_group.iter().enumerate().filter(|(i, _)| !infection_targets.contains_key(i)).max_by_key(|x| (x.1.effective_power(), x.1.initiative));
+
+			if next_immune.is_none() && next_infection.is_none() {
+				break;
+			}
+
+			if next_immune.is_some() && (next_infection.is_none() || next_infection.unwrap().1.effective_power() < next_immune.unwrap().1.effective_power()) {
+				let next = next_immune.unwrap();
+				let mut infections = self.infection_group
+					.iter()
+					.enumerate()
+					.filter(|(i, _)| !immune_targets.values().any(|v| v == i))
+					.map(|(i, x)| (x.damage_taken(next.1.total, next.1.damage, next.1.damage_type), x.effective_power(), x.initiative, i))
+					.collect::<Vec<_>>();
+				infections.sort();
+				infections.reverse();
+
+				if !infections.is_empty() {
+					immune_targets.insert(next.0, infections[0].3);
+				} else {
+					immune_targets.insert(next.0, usize::MAX);
+				}
+			} else {
+				let next = next_infection.unwrap();
+				let mut immunities = self.immune_system
+					.iter()
+					.enumerate()
+					.filter(|(i, _)| !infection_targets.values().any(|v| v == i))
+					.map(|(i, x)| (x.damage_taken(next.1.total, next.1.damage, next.1.damage_type), x.effective_power(), x.initiative, i))
+					.collect::<Vec<_>>();
+				immunities.sort();
+				immunities.reverse();
+
+				if !immunities.is_empty() {
+					infection_targets.insert(next.0, immunities[0].3);
+				} else {
+					infection_targets.insert(next.0, usize::MAX);
+				}
+			}
+		}
+
+		// Attacking
+		let mut turns = self.infection_group.iter().enumerate().map(|(i, x)| (x.initiative, true, i)).chain(self.immune_system.iter().enumerate().map(|(i, x)| (x.initiative, false, i))).collect::<Vec<_>>();
+		turns.sort();
+
+		while let Some((_, t, i)) = turns.pop() {
+			if t == true {
+				// Infection
+				let infection_group = &self.infection_group[i];
+				if infection_targets[&i] == usize::MAX {
+					continue;
+				}
+				let immunity_group = self.immune_system.get_mut(infection_targets[&i]).unwrap();
+				immunity_group.attacked(infection_group);
+			} else {
+				// Immune
+				let immune = &self.immune_system[i];
+				if immune_targets[&i] == usize::MAX {
+					continue;
+				}
+				let infection_group = self.infection_group.get_mut(immune_targets[&i]).unwrap();
+				infection_group.attacked(immune);
+			}
+		}
+		
+		self.immune_system = self.immune_system.clone().into_iter().filter(|x| !x.is_dead()).collect();
+		self.infection_group = self.infection_group.clone().into_iter().filter(|x| !x.is_dead()).collect();
+	}
+
+	fn done(&self) -> bool {
+		self.immune_system.is_empty() || self.infection_group.is_empty()
+	}
+
+	fn total_units(&self) -> i32 {
+		self.immune_system.iter().filter(|x| !x.is_dead()).map(|x| x.total).sum::<i32>()
+		+ self.infection_group.iter().filter(|x| !x.is_dead()).map(|x| x.total).sum::<i32>()
 	}
 }
 
@@ -87,7 +218,10 @@ fn main() {
 	let immune = split[0].lines().collect::<Vec<_>>()[1..].into_iter().map(|x| parser.parse(&x).unwrap()).map(Units::new).collect::<Vec<_>>();
 	let infection = split[1].lines().collect::<Vec<_>>()[1..].into_iter().map(|x| parser.parse(&x).unwrap()).map(Units::new).collect::<Vec<_>>();
 
-	println!("{:?}", immune);
+	let mut map = Map::new(immune, infection);
+	
+	map.play();
 
-	println!("{:?}", split.len());
+	let part1 = map.total_units();
+	println!("Day 24 part 1: {}", part1);
 }
